@@ -9,9 +9,27 @@ layout: single
 
 ## 特徴
 
-1. [Symfony3系のディレクトリ構造](https://symfony.com/doc/3.4/quick_tour/the_architecture.html){:target="_blank"}を参考に、EC-CUBE 4 独自構成となっています。
+1. EC-CUBE4 はSymfonyのディレクトリ構造を参考にしつつ、EC-CUBE独自の構成になっています。バージョンごとに、以下のSymfonyの構成を参考にしています。
+
+- 4.0系以降
+[Symfony3系のディレクトリ構造](https://symfony.com/doc/3.4/quick_tour/the_architecture.html){:target="_blank"}を参考にしています。
+- 4.1系以降
+[Symfony4系のディレクトリ構造](https://symfony.com/doc/4.x/quick_tour/the_architecture.html){:target="_blank"}を参考にしています。
+- 4.2系以降
+[Symfony5系のディレクトリ構造](https://symfony.com/doc/5.x/quick_tour/the_architecture.html){:target="_blank"}を参考にしています。
+- 4.3系以降
+[Symfony6系のディレクトリ構造](https://symfony.com/doc/6.4/quick_tour/the_architecture.html){:target="_blank"}を参考にしています。
 
 ## 主なディレクトリと役割
+
+### codeception/
+- Codeception による自動テスト（主に E2E / Unit）に関する設定・テストコードを配置
+
+```
+codeception/
+├── acceptance/           E2E（ブラウザ操作）テスト
+└── unit/                 単体テスト
+```
 
 ### app/
 

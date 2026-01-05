@@ -39,11 +39,6 @@ public static function getExtendedTypes(): iterable
 }
 ```
 
-EC-CUBE 4.2以降は、??
-
-EC-CUBE 4.3以降は、??
-
-
 #### 拡張用の関数
 
 以下の関数をオーバーライドし、引数で渡されるパラメータを変更することでフォームのカスタマイズが可能です。

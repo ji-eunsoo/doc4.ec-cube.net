@@ -187,6 +187,67 @@ CartItem や OrderItem が実装クラスとなります。
 PurchaseFlow は、集計を行う [calculate()](https://github.com/EC-CUBE/ec-cube/pull/2424/files#diff-1d9b0d44b6269dc98b5c09f331ff0c41R48){:target="_blank"} と完了処理を行う [purchase()](https://github.com/EC-CUBE/ec-cube/pull/2424/files#diff-1d9b0d44b6269dc98b5c09f331ff0c41R80){:target="_blank"} メソッドを持っています。
 メソッドが実行されると、Item や ItemHolder を Processor に渡し、Processor を順次実行していきます。また、Processor の実行結果を呼び出し元に返却します。
 
+##### PurchaseFlowの拡張 [#5147](https://github.com/EC-CUBE/ec-cube/pull/5147){:target="_blank"}
+EC-CUBE 4.3以降では、PurchaseFlowに登録されている各Processorの実行順序を変更できる仕組みが追加されました。
+
+これにより、標準で用意されたProcessorに加えて独自Processorを追加した場合でも、
+- プラグイン間での競合回避
+- 特定の計算ロジックの割り込み
+- 標準処理の前後での調整
+
+といった柔軟な制御が容易になっています。
+
+独自カスタマイズでProcessorを追加する場合、特に以下のようなケースでは、Processorの実行順序が重要になります。
+- 温度帯（冷凍・冷蔵・常温）で送料が変わる
+- 配送区分が増えて支払方法や手数料が変動する
+- 特定商品が含まれる場合に自動で手数料行を追加したい
+
+などでは、Processorの実行順序が重要になります。
+
+以下は、商品の配送条件（例：冷凍便）に基づいて手数料を加算する Processor の例です。合計金額の計算後に実行したい場合を想定し、優先度を低めに設定します。
+```php
+<?php
+
+namespace Customize\Service\PurchaseFlow\Processor;
+
+use EcCube\Service\PurchaseFlow\ItemHolderInterface;
+use EcCube\Service\PurchaseFlow\PurchaseContext;
+use EcCube\Service\PurchaseFlow\Processor\AbstractCommonPostprocessor;
+
+/**
+ * 冷凍便が含まれる場合に手数料を追加するプロセッサ
+ */
+class TemperatureFeeProcessor extends AbstractCommonPostprocessor
+{
+    public function execute(ItemHolderInterface $itemHolder, PurchaseContext $context): void
+    {
+        // 1. カート内の商品から温度帯（冷凍）が含まれるかチェック
+        // 2. 冷凍商品がある場合、手数料アイテムを追加
+        // $itemHolder->addItem($coolFeeItem);
+    }
+}
+
+```
+
+実装したプロセッサは、services.yamlでタグ定義を行うだけでシステムに認識されます。
+```yaml
+services:
+    Customize\Service\PurchaseFlow\Processor\TemperatureFeeProcessor:
+        tags:
+            # priorityを -100 に設定することで、標準の計算処理(0)よりも後に実行させる
+            - { name: eccube.common.postprocessor, flow_type: cart, priority: -100 }
+            - { name: eccube.common.postprocessor, flow_type: shopping, priority: -100 }
+            - { name: eccube.common.postprocessor, flow_type: order, priority: -100 }
+
+```
+
+| 設定項目   | 概要 |
+|-----------|------|
+| name      | PurchaseFlowPassに設定されているタグ名を指定 |
+| flow_type | cart、shopping、orderのいずれかを設定（必須） |
+| priority  | 未設定の場合は0が付与。数値が大きいほど、タグ付けされたサービスがコレクション内で先に配置される |
+
+
 ##### ItemValidator
 
 Item に 対して検証を実行する Processor です。

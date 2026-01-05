@@ -9,8 +9,6 @@ folder: customize
 
 ---
 
-**EC-CUBE4.3以降（Symfony 6.4ベース）の書き方で説明します。**
-
 ## FormExtensionを使った拡張
 
 FormExtensionの仕組みを利用すれば、既存のフォーム定義を書き換えることなく、フィールドの追加や設定をカスタマイズすることができます。

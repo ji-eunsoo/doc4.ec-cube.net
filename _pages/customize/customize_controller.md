@@ -10,8 +10,6 @@ folder: customize
 
 ---
 
-**EC-CUBE4.3以降（Symfony 6.4ベース）の書き方で説明します。**
-
 ## 新しいルーティングの追加
 
 `#[Route]` 属性（Attribute）を付与したコントローラクラスを`./app/Customize/Controller/` 以下に配置することで、サイトに新しいルーティングを追加することが可能です。  

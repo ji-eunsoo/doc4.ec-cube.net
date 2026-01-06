@@ -167,11 +167,132 @@ services:
 
 #### クラス図
 
-![default](https://user-images.githubusercontent.com/8196725/28611146-c9c6f83c-7225-11e7-9591-dc2e0e154cf5.png)
+```mermaid
+classDiagram
+direction LR
 
+%%========================================================
+%% 基本インターフェース
+%%========================================================
+class ItemHolderInterface {
+  + getItems() ItemCollection
+  + addItem(明細: ItemInterface) void
+}
+class ItemInterface
+
+note for ItemHolderInterface "Cart, Order"
+note for ItemInterface "CartItem, OrderItem"
+
+ItemHolderInterface o-- ItemInterface
+
+
+%%========================================================
+%% PurchaseFlow（全体制御）
+%%========================================================
+class PurchaseFlow {
+  + validate(一覧: ItemHolderInterface, コンテキスト: PurchaseContext) PurchaseFlowResult
+  + prepare(一覧: ItemHolderInterface, コンテキスト: PurchaseContext) void
+  + commit(一覧: ItemHolderInterface, コンテキスト: PurchaseContext) void
+  + rollback(一覧: ItemHolderInterface, コンテキスト: PurchaseContext) void
+}
+
+class CartController
+class ShoppingController
+
+note for CartController "別のFlowを使用"
+note for ShoppingController "別のFlowを使用"
+
+CartController --> PurchaseFlow
+ShoppingController --> PurchaseFlow
+
+
+%%========================================================
+%% Holder単位の前処理（ItemHolderPreprocessor）
+%%========================================================
+class ItemHolderPreprocessor {
+  + process(一覧: ItemHolderInterface, コンテキスト: PurchaseContext) void
+}
+note for ItemHolderPreprocessor "注意:冪等性が壊れやすい"
+
+ItemHolderPreprocessor --o PurchaseFlow
+
+class 割引明細追加
+class 送料明細追加
+class 手数料明細追加
+
+割引明細追加 --|> ItemHolderPreprocessor
+送料明細追加 --|> ItemHolderPreprocessor
+手数料明細追加 --|> ItemHolderPreprocessor
+
+
+%%========================================================
+%% Holder単位のValidator（ItemHolderValidator / Preprocessorの一種）
+%%========================================================
+class ItemHolderValidator {
+  + validate(一覧: ItemHolderInterface, コンテキスト: PurchaseContext) void
+  + handle(一覧: ItemHolderInterface) void
+}
+
+ItemHolderValidator --|> ItemHolderPreprocessor
+
+class 購入金額上限チェック
+class 商品種別チェック
+class 支払方法チェック
+
+購入金額上限チェック --|> ItemHolderValidator
+商品種別チェック --|> ItemHolderValidator
+支払方法チェック --|> ItemHolderValidator
+
+
+%%========================================================
+%% PurchaseProcessor（commit/rollback系）
+%%========================================================
+class PurchaseProcessor {
+  + prepare(一覧: ItemHolderInterface, コンテキスト: PurchaseContext) void
+  + commit(一覧: ItemHolderInterface, コンテキスト: PurchaseContext) void
+  + rollback(一覧: ItemHolderInterface, コンテキスト: PurchaseContext) void
+}
+
+PurchaseFlow o-- PurchaseProcessor
+
+class 会員の購入サマリ更新
+会員の購入サマリ更新 <|-- PurchaseProcessor
+
+
+%%========================================================
+%% Item単位の前処理（ItemPreprocessor）
+%%========================================================
+class ItemPreprocessor {
+  + process(明細: ItemInterface, コンテキスト: PurchaseContext) void
+}
+note for ItemPreprocessor "冪等性は簡単に保たれる"
+
+PurchaseFlow o-- ItemPreprocessor
+
+
+%%========================================================
+%% Item単位のValidator（ItemValidator）
+%%========================================================
+class ItemValidator {
+  + execute(明細: ItemInterface, コンテキスト: PurchaseContext) ProcessResult
+}
+
+ItemPreprocessor <|-- ItemValidator
+
+class 販売数制限チェック
+class 削除商品チェック
+class 非公開商品チェック
+class 在庫制限チェック
+
+販売数制限チェック --|> ItemValidator
+削除商品チェック --|> ItemValidator
+非公開商品チェック --|> ItemValidator
+在庫制限チェック --|> ItemValidator
+
+```
 主要なクラスの役割は以下の通りです。
 
-##### ItemIHolderInterface
+##### ItemHolderInterface
 
 明細一覧(明細のサマリ)を表すインターフェース。
 Cart や Order が実装クラスとなります。
@@ -184,7 +305,7 @@ CartItem や OrderItem が実装クラスとなります。
 ##### PurchaseFlow
 
 明細処理や集計処理の全体のフローを制御するクラスです。
-PurchaseFlow は、集計を行う [calculate()](https://github.com/EC-CUBE/ec-cube/pull/2424/files#diff-1d9b0d44b6269dc98b5c09f331ff0c41R48){:target="_blank"} と完了処理を行う [purchase()](https://github.com/EC-CUBE/ec-cube/pull/2424/files#diff-1d9b0d44b6269dc98b5c09f331ff0c41R80){:target="_blank"} メソッドを持っています。
+PurchaseFlow は、集計を行う [calculateAll()](https://github.com/EC-CUBE/ec-cube/blob/503b1f523282257cb5d979eaff4a67fa781e4a66/src/Eccube/Service/PurchaseFlow/PurchaseFlow.php#L367){:target="_blank"} と完了処理を行う [prepare()、commit()、rollback()](https://github.com/EC-CUBE/ec-cube/blob/503b1f523282257cb5d979eaff4a67fa781e4a66/src/Eccube/Service/PurchaseFlow/PurchaseFlow.php#L179-L226){:target="_blank"} メソッドを持っています。
 メソッドが実行されると、Item や ItemHolder を Processor に渡し、Processor を順次実行していきます。また、Processor の実行結果を呼び出し元に返却します。
 
 ##### PurchaseFlowの拡張 [#5147](https://github.com/EC-CUBE/ec-cube/pull/5147){:target="_blank"}
@@ -328,7 +449,7 @@ class EmptyProcessor implements ItemPreProcessor
      * @param PurchaseContext $context
      * @return ProcessResult
      */
-    public function process(ItemInterface $item, PurchaseContext $context)
+    public function process(ItemInterface $item, PurchaseContext $context): ProcessResult
     {
         log_info('empty processor executed', [__METHOD__]);
         return ProcessResult::success();
@@ -351,7 +472,7 @@ use Eccube\Service\PurchaseFlow\ItemValidator;
 
 class ValidatableEmptyProcessor extends ItemValidator
 {
-    protected function validate(ItemInterface $item, PurchaseContext $context)
+    protected function validate(ItemInterface $item, PurchaseContext $context): void
     {
         $error = false;
         if ($error) {
@@ -359,7 +480,7 @@ class ValidatableEmptyProcessor extends ItemValidator
         }
     }
 
-    protected function handle(ItemInterface $item, PurchaseContext $context)
+    protected function handle(ItemInterface $item, PurchaseContext $context): void
     {
         $item->setQuantity(100);
     }
@@ -418,12 +539,12 @@ use Eccube\Service\PurchaseFlow\ItemValidator;
  */
 class SampleValidator extends ItemValidator
 {
-    protected function validate(ItemInterface $item, PurchaseContext $context)
+    protected function validate(ItemInterface $item, PurchaseContext $context): void
     {
         // 省略
     }
 
-    protected function handle(ItemInterface $item, PurchaseContext $context)
+    protected function handle(ItemInterface $item, PurchaseContext $context): void
     {
         // 省略
     }

@@ -19,6 +19,30 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   document.documentElement.className = document.documentElement.className.replace(/\bno-js\b/g, '') + ' js ';
 </script>
 
+<!-- mermaid -->
+<script src="{{ '/assets/js/mermaid/mermaid.min.js' | relative_url }}"></script>
+
+<script>
+  window.addEventListener('load', function() {
+    if (typeof mermaid !== 'undefined') {
+      // さっきの変換スクリプトをここに書く
+      const codeBlocks = document.querySelectorAll('code.language-mermaid');
+      codeBlocks.forEach(function(code) {
+        const pre = code.parentElement;
+        const container = document.createElement('div');
+        container.className = 'mermaid';
+        container.innerHTML = code.textContent.trim();
+        pre.parentNode.replaceChild(container, pre);
+      });
+      
+      mermaid.initialize({ startOnLoad: true });
+      mermaid.contentLoaded();
+    } else {
+      console.error("Mermaid library failed to load locally.");
+    }
+  });
+</script>
+
 <!-- For all browsers -->
 <link rel="stylesheet" href="{{ '/assets/css/main.css' | relative_url }}">
 <link rel="stylesheet" href="{{ '/assets/font-awesome-4.7.0/css/font-awesome.min.css' | relative_url }}">

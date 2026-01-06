@@ -10,8 +10,52 @@ folder: customize
 
 `CartItemComparator` クラス、 `CartItemAllocator` クラスを実装することにより、カートに商品を投入した際の動作をカスタマイズ可能です。
 
-![シーケンス図](http://www.plantuml.com/plantuml/png/hLNBRjD05DtFLyoobUY6PHP8A18IEoI-m3XJ6idDLAuBB3js7owrQ6cRD4MYfEJPHab3sqK90Jvc6CUVmSpu6JiHgOGLHHwFxxddtdFcUgLOG70PO-CLVWS0o2kwaSSbGyUQXdIuz0IA9o-H_gQeeXnK2WMnVcwWrGMtCg3ab98jj_fXV3TO140LGQfHnALrICqkjKRKil_SRtgjDYXX0q6z-7h5W7WvimlvzNXy-uEI3ZjqAAbIqwPaXv8ktIJUpIMhtumxVMOtnxqzyL3irYbfoS08Z9f7pEP17wcvHqs7clin33dZIu1A1IYO-8K6POagKuHo2L1ombbHqlVBzFT5feCA-tKAKe5mATsoP5YgHPmJ-SwhI843LKSAxzRC_GpvcIzg6Az1z_GhwrMZFN5J7W3PkXHGg6qUhwufkc9WFGTLUO_ISZzAmoxwYB7ESYckJFwEUttYZIm9r_Br3hUuK5T2Dy9_brAwVMOtt4hF5v1kcX4ijNQfLQRc9RMwKgSs9TUilCEEYTSwS6kZKBbk01wxOm8dMpIdolfVlFgs26bmmzcIqh54QtD7Hh4--Scat1pcb8n1kCDsX-xdPe93x4cnKZG3Jcq9gzsnGnjCq9x30w41EHTgdGkhclSB4ueXRHt1SNdWf_blMIi3qH3vpBjmlDy_sVjQAd6f083yapQDJfBVpZbi-bJJiEgxLF5lKPGXgMpqNlPqHaczNfMF5zOxdEdYe361fxA1lCFkjo7hVyfQrUsSkSDAR2jfrUWq9kTRPhY9Y_VKtJg8D8ap4jvNpgSS3BkfXlhNe0ldxRHo7Av2OsAy-aClvTIvWWb_qvp3KMb-qVH8G7Mdsadu-864hlWyUp0XwUnv2CtmT-3iCDVav_R5XgwkAElecORVyk6hQEg69dozcFBbb2zKrxiTiUsc68fMJvxq8-6t2oV--Fq5)
+```mermaid
+sequenceDiagram
+    participant CartController
+    participant CartService
+    participant カート一覧
+    participant すべての明細一覧
 
+    CartController->>CartService: addCartItem(新しい明細)
+
+    CartService->>カート一覧: カートごとの明細一覧を取得
+    Note right of カート一覧: 販売種別等によって<br/>でカートを分けられるようにする
+    カート一覧-->>CartService: 明細一覧
+
+    CartService->>すべての明細一覧: 
+
+    loop 既存の明細の数
+        CartService->>CartItemComparator: compare(新しい明細, 既存の明細)
+        Note right of CartItemComparator: 既存の明細と比較して同じ明細になるか判断する。<br/>デフォルトでは商品規格ごとに明細を分ける。<br/>CartItemComparatorの実装を変えることで、<br/>同じ商品規格でも明細を分けることが出来る。
+
+        alt 同じ明細になる場合
+            CartService->>すべての明細一覧: 明細をマージ(明細)
+        else 異なる明細になる場合
+            CartService->>すべての明細一覧: 新規明細行追加(明細)
+        end
+    end
+
+    loop カート商品の数
+        CartService->>CartItemAllocator: allocate(明細)
+        CartItemAllocator-->>CartService: カート認別子
+        Note right of CartItemAllocator: 明細ごとにカート識別子を決定する。<br/>標準の実装では販売種別によって<br/>一意になる識別子が返される。
+        CartService->>カート一覧: 同じカート認別子を持つカートを取得
+
+        alt 同一識別子のカートがある場合
+            CartService->>カート一覧: 既存のカートに追加(明細)
+        else 同一識別子のカートがない場合
+            CartService->>カート一覧: 新規のカートに追加(明細)
+        end
+    end
+
+    %% カートごとに購入フロー実行
+    loop カートの数
+        CartController->>PurchaseFlow: calculate()
+        Note right of PurchaseFlow: カートごとに購入フローを実行する
+    end
+
+``` 
 
 ### 同じ商品・同じ商品規格でも別々の明細に分割する
 
@@ -35,7 +79,7 @@ class ProductClassAndOptionComparator implements CartItemComparator
      * @param CartItem $Item2 明細2
      * @return boolean 同じ明細になる場合はtrue
      */
-    public function compare(CartItem $Item1, CartItem $Item2)
+    public function compare(CartItem $Item1, CartItem $Item2): bool
     {
         $ProductClass1 = $Item1->getProductClass();
         $ProductClass2 = $Item2->getProductClass();
@@ -73,7 +117,7 @@ services:
     + 商品A: 販売種別A
     + 商品B: 販売種別B
 
-EC-CUBE3.0 では、商品Aをカート入れ、次に商品Bをカートに入れようとすると「この商品は同時に購入することはできません。」というエラーになってしまう。
+EC-CUBE3.0 では、商品Aをカート入れ、次に商品Bをカートに入れようとすると「この商品は同時に購入することはできません。」というエラーになってしまいます。
 
 `CartItemAllocator` を実装することで、任意の基準で、カートを分けられるようになります。
 例えば、予約商品など、 **同時にカートに投入したいが、別々に決済したい(注文を分けたい)** といったカスタマイズをすることができます。
@@ -95,17 +139,18 @@ class SaleTypeAndReserveCartAllocator implements CartItemAllocator
      * @param CartItem $Item カート商品
      * @return string
      */
-    public function allocate(CartItem $Item)
+    public function allocate(CartItem $Item): string
     {
         $ProductClass = $Item->getProductClass();
-        if ($ProductClass && $ProductClass->getSaleType()) {
-            $salesTypeId = (string) $ProductClass->getSaleType()->getId();
-            // isReserveItem は別途追加カスタマイズをしておく
-            if ($ProductClass->isReserveItem()) {
-                return $salesTypeId.':R' ;
-            }
-            return $salesTypeId;
+        $saleType = $ProductClass?->getSaleType();
+
+        if ($ProductClass && $saleType) {
+            $salesTypeId = (string) $saleType->getId();
+            return $ProductClass->isReserveItem()
+                ? $salesTypeId . ':R'
+                : $salesTypeId;
         }
+
         throw new \InvalidArgumentException('ProductClass/SaleType not found');
     }
 }

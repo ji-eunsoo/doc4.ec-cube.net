@@ -178,6 +178,9 @@ services:
 
 全体のアクティビティは以下の通りです。
 
+```mermaid
+？？
+```
 ![purchaseflow-activity](https://user-images.githubusercontent.com/8196725/28450154-7bd307a0-6e20-11e7-8827-9ee85c81136d.png)
 
 #### フローの制御の流れ
@@ -208,7 +211,73 @@ services:
 - 集計処理
     - 合計金額、配送料、手数料等の合計を集計する
 
-![default](https://user-images.githubusercontent.com/8196725/28610103-25570d30-7222-11e7-828c-a0a04e268df3.png)
+```mermaid
+sequenceDiagram
+    participant CartController as : CartController
+    participant PurchaseFlow as : PurchaseFlow
+    participant PurchaseFlowResult as : PurchaseFlowResult
+    participant ItemProcessor as : ItemProcessor
+    participant ItemHolderProcessor as : ItemHolderProcessor
+
+    CartController->>PurchaseFlow: 1: calculate(一覧:ItemHolderInterface, コンテキスト:PurchaseContext): PurchaseFlowResult
+    activate CartController
+    activate PurchaseFlow
+
+    %% --- ここで Result の長い棒を開始 ---
+    activate PurchaseFlowResult
+
+    PurchaseFlow->>+PurchaseFlow: 1.1: 単純集計()
+    deactivate PurchaseFlow
+
+    loop 明細の個数分 [Guard]
+        loop Processorの個数分 [Guard]
+            PurchaseFlow->>ItemProcessor: 1.2: process(明細:ItemInterface): ProcessResult
+            activate ItemProcessor
+            deactivate ItemProcessor
+
+            %% 長い棒の上に重ねる
+            PurchaseFlow->>+PurchaseFlowResult: 1.3: addProcessResult(ProcessResult)
+            deactivate PurchaseFlowResult
+        end
+    end
+
+    PurchaseFlow->>+PurchaseFlow: 1.4: 単純集計()
+    deactivate PurchaseFlow
+
+    loop Processorの個数分 [Guard]
+        PurchaseFlow->>ItemHolderProcessor: 1.5: process(一覧:ItemHolderInterface, コンテキスト:PurchaseContext): void
+        activate ItemHolderProcessor
+        deactivate ItemHolderProcessor
+
+        PurchaseFlow->>+PurchaseFlowResult: 1.6: addProcessResult(ProcessResult)
+        deactivate PurchaseFlowResult
+    end
+
+    PurchaseFlow->>+PurchaseFlow: 1.7: 単純集計()
+    deactivate PurchaseFlow
+
+    deactivate PurchaseFlow
+    PurchaseFlow-->>CartController: 
+    deactivate CartController
+
+
+    %% ---- 2: エラーハンドリング ----
+    CartController->>+CartController: 2: エラーハンドリング()
+
+    %% hasError と hasWarning の重ね棒
+    CartController->>+PurchaseFlowResult: 2.1: hasError()
+    deactivate PurchaseFlowResult
+
+    CartController->>+PurchaseFlowResult: 2.2: hasWarning()
+    deactivate PurchaseFlowResult
+    
+    
+    %% --- 全て終わったので最後に長い棒を閉じる ---
+    deactivate PurchaseFlowResult
+    deactivate CartController
+
+```
+
 
 #### クラス図
 

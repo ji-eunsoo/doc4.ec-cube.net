@@ -177,10 +177,6 @@ services:
 #### アクティビティ
 
 全体のアクティビティは以下の通りです。
-
-```mermaid
-？？
-```
 ![purchaseflow-activity](https://user-images.githubusercontent.com/8196725/28450154-7bd307a0-6e20-11e7-8827-9ee85c81136d.png)
 
 #### フローの制御の流れ

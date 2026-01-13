@@ -175,9 +175,91 @@ services:
 集計フローを制御する PurchaseFlow と、各処理を行う Processor に分離し、ロジックを差し替えたり、新たなバリデーションを追加するカスタマイズが簡単になりました。
 
 #### アクティビティ
-
 全体のアクティビティは以下の通りです。
-![purchaseflow-activity](https://user-images.githubusercontent.com/8196725/28450154-7bd307a0-6e20-11e7-8827-9ee85c81136d.png)
+```mermaid
+flowchart TB
+
+%% =========================
+%% 顧客サブグラフ
+%% =========================
+subgraph Customer["顧客"]
+  A0["●(開始)"] --> A1["顧客"] --> A2["商品を閲覧する"]
+  A3["商品をカートに入れる"]
+  A4["カートを操作する"]
+  A5["購入商品を確定する"]
+  A6["注文内容を確認する"]
+  A7["注文を確定する"]
+  A8["◎(終了)"]
+end
+
+%% =========================
+%% EC-CUBE サブグラフ
+%% =========================
+subgraph Eccube["EC-CUBE"]
+  B1["商品詳細を表示する"]
+  B2["カートの内容を表示する"]
+  B3["注文内容を表示する"]
+  B4["注文を受領する"]
+
+  PC((:ProductController))
+  PObj((:Product))
+  CartItemObj((:CartItem))
+  CartObj((:Cart))
+  CC((:CartController))
+  SC((:ShoppingController))
+  ShipItemObj((:ShipmentItem))
+  OrderObj((:Order))
+end
+
+%% =========================
+%% カート内部ロジック サブグラフ
+%% =========================
+subgraph Cart["カート内部ロジック"]
+  PF((:PurchaseFlow))
+  VIP((:ValidatableItemProcessor))
+  IP((:ItemProcessor))
+  VIH((:ValidatableItemHolderProcessor))
+  IHP((:ItemHolderProcessor))
+  PP((:PurchaseProcessor))
+end
+
+%% =========================
+%% 画面・ユーザ操作フロー
+%% =========================
+A2 --> B1 --> A3
+A3 --> B2 --> A4
+A4 --> B2
+A4 --> A5
+A5 --> B3 --> A6 --> A7
+A7 --> B4
+A7 --> A8
+
+%% =========================
+%% コントローラ / ドメイン関連
+%% =========================
+PC --> B1
+PC --> PObj
+CartItemObj --> PObj
+CartObj --> CartItemObj
+
+CC --> B2
+SC --> B3
+SC --> B4
+SC --> ShipItemObj
+OrderObj --> ShipItemObj
+
+%% =========================
+%% PurchaseFlow（カート内部ロジック）関連
+%% =========================
+PF --> CartObj
+CC --> PF
+SC --> PF
+PF --> OrderObj
+PF -->|calculateでコールされる| VIP
+PF -->|purchaseでコールされる| PP
+
+VIP --> IP --> VIH --> IHP
+```
 
 #### フローの制御の流れ
 

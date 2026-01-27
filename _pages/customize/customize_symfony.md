@@ -36,7 +36,7 @@ class HelloListener implements EventSubscriberInterface
     public function onResponse(ResponseEvent $event): void
     {
         $response = $event->getResponse();
-        $response->setContent($response->getContent() . 'hello world');
+        $response->setContent($response->getContent().'hello world');
     }
 
     public static function getSubscribedEvents(): array
@@ -184,7 +184,7 @@ class LogEventSubscriber
 
         // BaseInfoがロードされたらログを出力
         if ($entity instanceof BaseInfo) {
-            $this->logger->info('Shop info loaded: ' . $entity->getShopName(), [
+            $this->logger->info('Shop info loaded: '.$entity->getShopName(), [
                 'id' => $entity->getId(),
                 'time' => date('Y-m-d H:i:s')
             ]);

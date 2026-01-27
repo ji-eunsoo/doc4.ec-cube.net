@@ -41,7 +41,7 @@ class SamplePageController
 
 ## テンプレートファイルの利用
 
-`$this->render()` メソッドを利用することで、Twigのテンプレートファイルを利用することができます。
+`#[Template]` 属性（Attribute）を利用することで、Twigのテンプレートファイルを利用することができます。
 以下のサンプルは、`http://サイトURL/sample` にアクセスすると"Hello EC-CUBE !"と表示します。
 
 ### Controllerファイル
@@ -178,7 +178,7 @@ class SamplePageController extends AbstractController
         /** @var Product $product */
         $product = $this->entityManager->getRepository(Product::class)->find(1);
 
-        return new Response('Product is ' . $product->getName());
+        return new Response('Product is '.$product->getName());
     }
 }
 ```
@@ -212,7 +212,7 @@ class SamplePageController
     #[Route('/sample', methods: ['GET'])]
     public function testMethod(): Response
     {
-        return new Response('Shop name is ' . $this->BaseInfo->getShopName());
+        return new Response('Shop name is '.$this->BaseInfo->getShopName());
     }
 }
 ```

@@ -51,20 +51,21 @@ class SamplePageController
 
 namespace Customize\Controller;
 
-use Eccube\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\Response;
+use Symfony\Bridge\Twig\Attribute\Template;
 use Symfony\Component\Routing\Attribute\Route;
 
-class SamplePageController extends AbstractController
+class SamplePageController
 {
-    #[Route('/sample', methods: ['GET'])]
-    public function testMethod(): Response
+    #[Route(path: '/sample', methods: ['GET'])]
+    #[Template('Sample/index.twig')]
+    public function testMethod(): array
     {
-        return $this->render('Sample/index.twig', [
-            'name' => 'EC-CUBE',
-        ]);
+        return [
+            'message' => 'Hello EC-CUBE !',
+        ];
     }
 }
+
 ```
 
 
@@ -73,7 +74,7 @@ class SamplePageController extends AbstractController
 ./app/template/default/Sample/index.twig
 
 ```twig
-{% raw %}<h3>Hello {{ name }}</h3>{% endraw %}
+{% raw %}<h3>{{ message }}</h3>{% endraw %}
 ```
 
 ## カスタマイズのヒント

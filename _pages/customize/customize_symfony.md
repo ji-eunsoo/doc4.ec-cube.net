@@ -28,17 +28,18 @@ Symfonyのイベントシステムを利用することができます。
 namespace Customize\EventListener;
 
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
-use Symfony\Component\HttpKernel\Event\FilterResponseEvent;
+use Symfony\Component\HttpKernel\Event\ResponseEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
 
 class HelloListener implements EventSubscriberInterface
 {
-    public function onResponse(FilterResponseEvent $event)
+    public function onResponse(ResponseEvent $event): void
     {
-        echo 'hello world';
+        $response = $event->getResponse();
+        $response->setContent($response->getContent().'hello world');
     }
 
-    public static function getSubscribedEvents()
+    public static function getSubscribedEvents(): array
     {
         return [
             KernelEvents::RESPONSE => 'onResponse',
@@ -81,7 +82,7 @@ class HelloCommand extends Command
     // コマンド名
     protected static $defaultName = 'acme:hello';
 
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
 
@@ -123,31 +124,77 @@ Doctrineのイベントシステムを利用することができます。
 
 namespace Customize\Doctrine\EventSubscriber;
 
-use Doctrine\Common\EventSubscriber;
-use Doctrine\Common\Persistence\Event\LifecycleEventArgs;
+use Doctrine\Bundle\DoctrineBundle\Attribute\AsDoctrineListener;
 use Doctrine\ORM\Events;
+use Doctrine\Persistence\Event\LifecycleEventArgs;
 use Eccube\Entity\BaseInfo;
 
-class HelloEventSubscriber implements EventSubscriber
+#[AsDoctrineListener(event: Events::postLoad)]
+class HelloEventSubscriber
 {
-    public function getSubscribedEvents()
-    {
-        return [Events::postLoad];
-    }
-
-    public function postLoad(LifecycleEventArgs $args)
+    public function postLoad(LifecycleEventArgs $args): void
     {
         $entity = $args->getObject();
+
         if ($entity instanceof BaseInfo) {
             $shopName = $entity->getShopName();
-            $shopName = 'ようこそ '.$shopName.' へ';
-            $entity->setShopName($shopName);
+            if (!str_contains($shopName, 'ようこそ')) {
+                $entity->setShopName('ようこそ '.$shopName.' へ');
+            }
         }
     }
 }
 ```
 
 作成後、トップページを開き、`ようこそ [ショップ名] へ`が表示されていれば成功です。
+
+表示されない場合は、`bin/console cache:clear --no-warmup`でキャッシュを削除してください。
+
+### ログを出力するイベントリスナーを作成する
+
+`app/Customize/Doctrine/EventSubscriber`配下に`LogEventSubscriber.php`を作成します。
+
+```php
+<?php
+
+namespace Customize\Doctrine\EventSubscriber;
+
+use Doctrine\Bundle\DoctrineBundle\Attribute\AsDoctrineListener;
+use Doctrine\ORM\Events;
+use Doctrine\Persistence\Event\LifecycleEventArgs;
+use Eccube\Entity\BaseInfo;
+use Psr\Log\LoggerInterface;
+
+#[AsDoctrineListener(event: Events::postLoad)]
+class LogEventSubscriber
+{
+    /**
+     * @var LoggerInterface
+     */
+    private $logger;
+
+    public function __construct(LoggerInterface $logger)
+    {
+        $this->logger = $logger;
+    }
+
+    public function postLoad(LifecycleEventArgs $args): void
+    {
+        $entity = $args->getObject();
+
+        // BaseInfoがロードされたらログを出力
+        if ($entity instanceof BaseInfo) {
+            $this->logger->info('Shop info loaded: '.$entity->getShopName(), [
+                'id' => $entity->getId(),
+                'time' => date('Y-m-d H:i:s')
+            ]);
+        }
+    }
+}
+```
+
+作成後、トップページを開きます。
+その後、`/var/www/html/var/log/`のログファイルを確認すると、`Shop info loaded・・・`のログが出力されます。
 
 表示されない場合は、`bin/console cache:clear --no-warmup`でキャッシュを削除してください。
 
@@ -160,5 +207,102 @@ class HelloEventSubscriber implements EventSubscriber
 
 ## SymfonyのBundleを利用する
 
-TODO
+EC-CUBEへSymfony Bundle を直接導入するかどうかは、要件に応じて判断が必要です。
+EC-CUBEのプラグインだけでは実現が難しい場合は、Symfony Bundle での利用を検討してください。
 
+#### プラグインで Symfony Bundle を導入する場合
+[Web API プラグイン](https://github.com/EC-CUBE/eccube-api4)の実装を参考にしてください。
+- composer.json
+
+`composer.json` に利用するBundleを記載します。
+```json
+{
+  "name": "ec-cube/api42",
+  "version": "4.3.2",
+  "description": "Web API",
+  "type": "eccube-plugin",
+  "require": {
+    "ec-cube/plugin-installer": "^2.0",
+    "league/oauth2-server-bundle": "^0.5",
+    "nyholm/psr7": "^1.2",
+    "php-http/message-factory": "*",
+    "webonyx/graphql-php": "^14.0"
+  },
+  "extra": {
+    "code": "Api42",
+    "entity-namespaces": ["League\\Bundle\\OAuth2ServerBundle\\Model"]
+  }
+}
+```
+
+- Bundle/ApiBundle.php
+
+bundles.phpを追加してください。
+```php
+namespace Plugin\Api42\Bundle;
+
+use Plugin\Api42\DependencyInjection\ApiExtension;
+use Plugin\Api42\DependencyInjection\Compiler\ApiCompilerPass;
+use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\Extension\ExtensionInterface;
+use Symfony\Component\HttpKernel\Bundle\Bundle;
+
+class ApiBundle extends Bundle
+{
+    public function build(ContainerBuilder $container): void
+    {
+        parent::build($container);
+
+        $container->addCompilerPass(new ApiCompilerPass());
+    }
+
+    public function getContainerExtension(): ?ExtensionInterface
+    {
+        return new ApiExtension();
+    }
+}
+```
+Bundleのファイルが必要です。
+
+- Controller/Admin/OAuthController.php
+
+必要なBundleのクラスを利用し、実装してください。
+```php
+・・・
+use League\Bundle\OAuth2ServerBundle\Manager\AccessTokenManagerInterface;
+use League\Bundle\OAuth2ServerBundle\Manager\ClientFilter;
+use League\Bundle\OAuth2ServerBundle\Manager\ClientManagerInterface;
+・・・
+```
+
+#### CustomizeディレクトリからSymfony Bundleをインストール [#6141](https://github.com/EC-CUBE/ec-cube/pull/6141)
+
+EC-CUBE 4.3 から、Customizeディレクトリ配下に Symfony Bundle を配置して利用できるようになりました。
+
+```php
+<?php
+
+namespace Customize\Bundle;
+
+use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\HttpKernel\Bundle\Bundle;
+
+class CustomizeBundle extends Bundle
+{
+    public function build(ContainerBuilder $container): void
+    {
+        parent::build($container);
+        var_dump('hello world.');
+    }
+}
+
+```
+
+app/Customize/Resource/config/bundles.php
+```php
+<?php
+
+return [
+    \Customize\Bundle\CustomizeBundle::class => ['all' => true],
+];
+```

@@ -10,8 +10,52 @@ folder: customize
 
 `CartItemComparator` クラス、 `CartItemAllocator` クラスを実装することにより、カートに商品を投入した際の動作をカスタマイズ可能です。
 
-![シーケンス図](http://www.plantuml.com/plantuml/png/hLNBRjD05DtFLyoobUY6PHP8A18IEoI-m3XJ6idDLAuBB3js7owrQ6cRD4MYfEJPHab3sqK90Jvc6CUVmSpu6JiHgOGLHHwFxxddtdFcUgLOG70PO-CLVWS0o2kwaSSbGyUQXdIuz0IA9o-H_gQeeXnK2WMnVcwWrGMtCg3ab98jj_fXV3TO140LGQfHnALrICqkjKRKil_SRtgjDYXX0q6z-7h5W7WvimlvzNXy-uEI3ZjqAAbIqwPaXv8ktIJUpIMhtumxVMOtnxqzyL3irYbfoS08Z9f7pEP17wcvHqs7clin33dZIu1A1IYO-8K6POagKuHo2L1ombbHqlVBzFT5feCA-tKAKe5mATsoP5YgHPmJ-SwhI843LKSAxzRC_GpvcIzg6Az1z_GhwrMZFN5J7W3PkXHGg6qUhwufkc9WFGTLUO_ISZzAmoxwYB7ESYckJFwEUttYZIm9r_Br3hUuK5T2Dy9_brAwVMOtt4hF5v1kcX4ijNQfLQRc9RMwKgSs9TUilCEEYTSwS6kZKBbk01wxOm8dMpIdolfVlFgs26bmmzcIqh54QtD7Hh4--Scat1pcb8n1kCDsX-xdPe93x4cnKZG3Jcq9gzsnGnjCq9x30w41EHTgdGkhclSB4ueXRHt1SNdWf_blMIi3qH3vpBjmlDy_sVjQAd6f083yapQDJfBVpZbi-bJJiEgxLF5lKPGXgMpqNlPqHaczNfMF5zOxdEdYe361fxA1lCFkjo7hVyfQrUsSkSDAR2jfrUWq9kTRPhY9Y_VKtJg8D8ap4jvNpgSS3BkfXlhNe0ldxRHo7Av2OsAy-aClvTIvWWb_qvp3KMb-qVH8G7Mdsadu-864hlWyUp0XwUnv2CtmT-3iCDVav_R5XgwkAElecORVyk6hQEg69dozcFBbb2zKrxiTiUsc68fMJvxq8-6t2oV--Fq5)
+```mermaid
+sequenceDiagram
+    participant CartController
+    participant CartService
+    participant カート一覧
+    participant すべての明細一覧
 
+    CartController->>CartService: addCartItem(新しい明細)
+
+    CartService->>カート一覧: カートごとの明細一覧を取得
+    Note right of カート一覧: 販売種別等によって<br/>でカートを分けられるようにする
+    カート一覧-->>CartService: 明細一覧
+
+    CartService->>すべての明細一覧: 
+
+    loop 既存の明細の数
+        CartService->>CartItemComparator: compare(新しい明細, 既存の明細)
+        Note right of CartItemComparator: 既存の明細と比較して同じ明細になるか判断する。<br/>デフォルトでは商品規格ごとに明細を分ける。<br/>CartItemComparatorの実装を変えることで、<br/>同じ商品規格でも明細を分けることが出来る。
+
+        alt 同じ明細になる場合
+            CartService->>すべての明細一覧: 明細をマージ(明細)
+        else 異なる明細になる場合
+            CartService->>すべての明細一覧: 新規明細行追加(明細)
+        end
+    end
+
+    loop カート商品の数
+        CartService->>CartItemAllocator: allocate(明細)
+        CartItemAllocator-->>CartService: カート認別子
+        Note right of CartItemAllocator: 明細ごとにカート識別子を決定する。<br/>標準の実装では販売種別によって<br/>一意になる識別子が返される。
+        CartService->>カート一覧: 同じカート認別子を持つカートを取得
+
+        alt 同一識別子のカートがある場合
+            CartService->>カート一覧: 既存のカートに追加(明細)
+        else 同一識別子のカートがない場合
+            CartService->>カート一覧: 新規のカートに追加(明細)
+        end
+    end
+
+    %% カートごとに購入フロー実行
+    loop カートの数
+        CartController->>PurchaseFlow: calculate()
+        Note right of PurchaseFlow: カートごとに購入フローを実行する
+    end
+
+``` 
 
 ### 同じ商品・同じ商品規格でも別々の明細に分割する
 
@@ -35,7 +79,7 @@ class ProductClassAndOptionComparator implements CartItemComparator
      * @param CartItem $Item2 明細2
      * @return boolean 同じ明細になる場合はtrue
      */
-    public function compare(CartItem $Item1, CartItem $Item2)
+    public function compare(CartItem $Item1, CartItem $Item2): bool
     {
         $ProductClass1 = $Item1->getProductClass();
         $ProductClass2 = $Item2->getProductClass();
@@ -73,7 +117,7 @@ services:
     + 商品A: 販売種別A
     + 商品B: 販売種別B
 
-EC-CUBE3.0 では、商品Aをカート入れ、次に商品Bをカートに入れようとすると「この商品は同時に購入することはできません。」というエラーになってしまう。
+EC-CUBE3.0 では、商品Aをカート入れ、次に商品Bをカートに入れようとすると「この商品は同時に購入することはできません。」というエラーになってしまいます。
 
 `CartItemAllocator` を実装することで、任意の基準で、カートを分けられるようになります。
 例えば、予約商品など、 **同時にカートに投入したいが、別々に決済したい(注文を分けたい)** といったカスタマイズをすることができます。
@@ -95,17 +139,18 @@ class SaleTypeAndReserveCartAllocator implements CartItemAllocator
      * @param CartItem $Item カート商品
      * @return string
      */
-    public function allocate(CartItem $Item)
+    public function allocate(CartItem $Item): string
     {
         $ProductClass = $Item->getProductClass();
-        if ($ProductClass && $ProductClass->getSaleType()) {
-            $salesTypeId = (string) $ProductClass->getSaleType()->getId();
-            // isReserveItem は別途追加カスタマイズをしておく
-            if ($ProductClass->isReserveItem()) {
-                return $salesTypeId.':R' ;
-            }
-            return $salesTypeId;
+        $saleType = $ProductClass?->getSaleType();
+
+        if ($ProductClass && $saleType) {
+            $salesTypeId = (string) $saleType->getId();
+            return $ProductClass->isReserveItem()
+                ? $salesTypeId . ':R'
+                : $salesTypeId;
         }
+
         throw new \InvalidArgumentException('ProductClass/SaleType not found');
     }
 }
@@ -130,10 +175,91 @@ services:
 集計フローを制御する PurchaseFlow と、各処理を行う Processor に分離し、ロジックを差し替えたり、新たなバリデーションを追加するカスタマイズが簡単になりました。
 
 #### アクティビティ
-
 全体のアクティビティは以下の通りです。
+```mermaid
+flowchart TB
 
-![purchaseflow-activity](https://user-images.githubusercontent.com/8196725/28450154-7bd307a0-6e20-11e7-8827-9ee85c81136d.png)
+%% =========================
+%% 顧客サブグラフ
+%% =========================
+subgraph Customer["顧客"]
+  A0["●(開始)"] --> A1["顧客"] --> A2["商品を閲覧する"]
+  A3["商品をカートに入れる"]
+  A4["カートを操作する"]
+  A5["購入商品を確定する"]
+  A6["注文内容を確認する"]
+  A7["注文を確定する"]
+  A8["◎(終了)"]
+end
+
+%% =========================
+%% EC-CUBE サブグラフ
+%% =========================
+subgraph Eccube["EC-CUBE"]
+  B1["商品詳細を表示する"]
+  B2["カートの内容を表示する"]
+  B3["注文内容を表示する"]
+  B4["注文を受領する"]
+
+  PC((:ProductController))
+  PObj((:Product))
+  CartItemObj((:CartItem))
+  CartObj((:Cart))
+  CC((:CartController))
+  SC((:ShoppingController))
+  ShipItemObj((:ShipmentItem))
+  OrderObj((:Order))
+end
+
+%% =========================
+%% カート内部ロジック サブグラフ
+%% =========================
+subgraph Cart["カート内部ロジック"]
+  PF((:PurchaseFlow))
+  VIP((:ValidatableItemProcessor))
+  IP((:ItemProcessor))
+  VIH((:ValidatableItemHolderProcessor))
+  IHP((:ItemHolderProcessor))
+  PP((:PurchaseProcessor))
+end
+
+%% =========================
+%% 画面・ユーザ操作フロー
+%% =========================
+A2 --> B1 --> A3
+A3 --> B2 --> A4
+A4 --> B2
+A4 --> A5
+A5 --> B3 --> A6 --> A7
+A7 --> B4
+A7 --> A8
+
+%% =========================
+%% コントローラ / ドメイン関連
+%% =========================
+PC --> B1
+PC --> PObj
+CartItemObj --> PObj
+CartObj --> CartItemObj
+
+CC --> B2
+SC --> B3
+SC --> B4
+SC --> ShipItemObj
+OrderObj --> ShipItemObj
+
+%% =========================
+%% PurchaseFlow（カート内部ロジック）関連
+%% =========================
+PF --> CartObj
+CC --> PF
+SC --> PF
+PF --> OrderObj
+PF -->|calculateでコールされる| VIP
+PF -->|purchaseでコールされる| PP
+
+VIP --> IP --> VIH --> IHP
+```
 
 #### フローの制御の流れ
 
@@ -163,15 +289,202 @@ services:
 - 集計処理
     - 合計金額、配送料、手数料等の合計を集計する
 
-![default](https://user-images.githubusercontent.com/8196725/28610103-25570d30-7222-11e7-828c-a0a04e268df3.png)
+```mermaid
+sequenceDiagram
+    participant CartController as : CartController
+    participant PurchaseFlow as : PurchaseFlow
+    participant PurchaseFlowResult as : PurchaseFlowResult
+    participant ItemProcessor as : ItemProcessor
+    participant ItemHolderProcessor as : ItemHolderProcessor
+
+    CartController->>PurchaseFlow: 1: calculate(一覧:ItemHolderInterface, コンテキスト:PurchaseContext): PurchaseFlowResult
+    activate CartController
+    activate PurchaseFlow
+
+    %% --- ここで Result の長い棒を開始 ---
+    activate PurchaseFlowResult
+
+    PurchaseFlow->>+PurchaseFlow: 1.1: 単純集計()
+    deactivate PurchaseFlow
+
+    loop 明細の個数分 [Guard]
+        loop Processorの個数分 [Guard]
+            PurchaseFlow->>ItemProcessor: 1.2: process(明細:ItemInterface): ProcessResult
+            activate ItemProcessor
+            deactivate ItemProcessor
+
+            %% 長い棒の上に重ねる
+            PurchaseFlow->>+PurchaseFlowResult: 1.3: addProcessResult(ProcessResult)
+            deactivate PurchaseFlowResult
+        end
+    end
+
+    PurchaseFlow->>+PurchaseFlow: 1.4: 単純集計()
+    deactivate PurchaseFlow
+
+    loop Processorの個数分 [Guard]
+        PurchaseFlow->>ItemHolderProcessor: 1.5: process(一覧:ItemHolderInterface, コンテキスト:PurchaseContext): void
+        activate ItemHolderProcessor
+        deactivate ItemHolderProcessor
+
+        PurchaseFlow->>+PurchaseFlowResult: 1.6: addProcessResult(ProcessResult)
+        deactivate PurchaseFlowResult
+    end
+
+    PurchaseFlow->>+PurchaseFlow: 1.7: 単純集計()
+    deactivate PurchaseFlow
+
+    deactivate PurchaseFlow
+    PurchaseFlow-->>CartController: 
+    deactivate CartController
+
+
+    %% ---- 2: エラーハンドリング ----
+    CartController->>+CartController: 2: エラーハンドリング()
+
+    %% hasError と hasWarning の重ね棒
+    CartController->>+PurchaseFlowResult: 2.1: hasError()
+    deactivate PurchaseFlowResult
+
+    CartController->>+PurchaseFlowResult: 2.2: hasWarning()
+    deactivate PurchaseFlowResult
+    
+    
+    %% --- 全て終わったので最後に長い棒を閉じる ---
+    deactivate PurchaseFlowResult
+    deactivate CartController
+
+```
+
 
 #### クラス図
 
-![default](https://user-images.githubusercontent.com/8196725/28611146-c9c6f83c-7225-11e7-9591-dc2e0e154cf5.png)
+```mermaid
+classDiagram
+direction LR
 
+%%========================================================
+%% 基本インターフェース
+%%========================================================
+class ItemHolderInterface {
+  + getItems() ItemCollection
+  + addItem(明細: ItemInterface) void
+}
+class ItemInterface
+
+note for ItemHolderInterface "Cart, Order"
+note for ItemInterface "CartItem, OrderItem"
+
+ItemHolderInterface o-- ItemInterface
+
+
+%%========================================================
+%% PurchaseFlow（全体制御）
+%%========================================================
+class PurchaseFlow {
+  + validate(一覧: ItemHolderInterface, コンテキスト: PurchaseContext) PurchaseFlowResult
+  + prepare(一覧: ItemHolderInterface, コンテキスト: PurchaseContext) void
+  + commit(一覧: ItemHolderInterface, コンテキスト: PurchaseContext) void
+  + rollback(一覧: ItemHolderInterface, コンテキスト: PurchaseContext) void
+}
+
+class CartController
+class ShoppingController
+
+note for CartController "別のFlowを使用"
+note for ShoppingController "別のFlowを使用"
+
+CartController --> PurchaseFlow
+ShoppingController --> PurchaseFlow
+
+
+%%========================================================
+%% Holder単位の前処理（ItemHolderPreprocessor）
+%%========================================================
+class ItemHolderPreprocessor {
+  + process(一覧: ItemHolderInterface, コンテキスト: PurchaseContext) void
+}
+note for ItemHolderPreprocessor "注意:冪等性が壊れやすい"
+
+ItemHolderPreprocessor --o PurchaseFlow
+
+class 割引明細追加
+class 送料明細追加
+class 手数料明細追加
+
+割引明細追加 --|> ItemHolderPreprocessor
+送料明細追加 --|> ItemHolderPreprocessor
+手数料明細追加 --|> ItemHolderPreprocessor
+
+
+%%========================================================
+%% Holder単位のValidator（ItemHolderValidator / Preprocessorの一種）
+%%========================================================
+class ItemHolderValidator {
+  + validate(一覧: ItemHolderInterface, コンテキスト: PurchaseContext) void
+  + handle(一覧: ItemHolderInterface) void
+}
+
+ItemHolderValidator --|> ItemHolderPreprocessor
+
+class 購入金額上限チェック
+class 商品種別チェック
+class 支払方法チェック
+
+購入金額上限チェック --|> ItemHolderValidator
+商品種別チェック --|> ItemHolderValidator
+支払方法チェック --|> ItemHolderValidator
+
+
+%%========================================================
+%% PurchaseProcessor（commit/rollback系）
+%%========================================================
+class PurchaseProcessor {
+  + prepare(一覧: ItemHolderInterface, コンテキスト: PurchaseContext) void
+  + commit(一覧: ItemHolderInterface, コンテキスト: PurchaseContext) void
+  + rollback(一覧: ItemHolderInterface, コンテキスト: PurchaseContext) void
+}
+
+PurchaseFlow o-- PurchaseProcessor
+
+class 会員の購入サマリ更新
+会員の購入サマリ更新 <|-- PurchaseProcessor
+
+
+%%========================================================
+%% Item単位の前処理（ItemPreprocessor）
+%%========================================================
+class ItemPreprocessor {
+  + process(明細: ItemInterface, コンテキスト: PurchaseContext) void
+}
+note for ItemPreprocessor "冪等性は簡単に保たれる"
+
+PurchaseFlow o-- ItemPreprocessor
+
+
+%%========================================================
+%% Item単位のValidator（ItemValidator）
+%%========================================================
+class ItemValidator {
+  + execute(明細: ItemInterface, コンテキスト: PurchaseContext) ProcessResult
+}
+
+ItemPreprocessor <|-- ItemValidator
+
+class 販売数制限チェック
+class 削除商品チェック
+class 非公開商品チェック
+class 在庫制限チェック
+
+販売数制限チェック --|> ItemValidator
+削除商品チェック --|> ItemValidator
+非公開商品チェック --|> ItemValidator
+在庫制限チェック --|> ItemValidator
+
+```
 主要なクラスの役割は以下の通りです。
 
-##### ItemIHolderInterface
+##### ItemHolderInterface
 
 明細一覧(明細のサマリ)を表すインターフェース。
 Cart や Order が実装クラスとなります。
@@ -184,8 +497,69 @@ CartItem や OrderItem が実装クラスとなります。
 ##### PurchaseFlow
 
 明細処理や集計処理の全体のフローを制御するクラスです。
-PurchaseFlow は、集計を行う [calculate()](https://github.com/EC-CUBE/ec-cube/pull/2424/files#diff-1d9b0d44b6269dc98b5c09f331ff0c41R48){:target="_blank"} と完了処理を行う [purchase()](https://github.com/EC-CUBE/ec-cube/pull/2424/files#diff-1d9b0d44b6269dc98b5c09f331ff0c41R80){:target="_blank"} メソッドを持っています。
+PurchaseFlow は、集計を行う [calculateAll()](https://github.com/EC-CUBE/ec-cube/blob/503b1f523282257cb5d979eaff4a67fa781e4a66/src/Eccube/Service/PurchaseFlow/PurchaseFlow.php#L367){:target="_blank"} と完了処理を行う [prepare()、commit()、rollback()](https://github.com/EC-CUBE/ec-cube/blob/503b1f523282257cb5d979eaff4a67fa781e4a66/src/Eccube/Service/PurchaseFlow/PurchaseFlow.php#L179-L226){:target="_blank"} メソッドを持っています。
 メソッドが実行されると、Item や ItemHolder を Processor に渡し、Processor を順次実行していきます。また、Processor の実行結果を呼び出し元に返却します。
+
+##### PurchaseFlowの拡張 [#5147](https://github.com/EC-CUBE/ec-cube/pull/5147){:target="_blank"}
+EC-CUBE 4.3以降では、PurchaseFlowに登録されている各Processorの実行順序を変更できる仕組みが追加されました。
+
+これにより、標準で用意されたProcessorに加えて独自Processorを追加した場合でも、
+- プラグイン間での競合回避
+- 特定の計算ロジックの割り込み
+- 標準処理の前後での調整
+
+といった柔軟な制御が容易になっています。
+
+独自カスタマイズでProcessorを追加する場合、特に以下のようなケースでは、Processorの実行順序が重要になります。
+- 温度帯（冷凍・冷蔵・常温）で送料が変わる
+- 配送区分が増えて支払方法や手数料が変動する
+- 特定商品が含まれる場合に自動で手数料行を追加したい
+
+などでは、Processorの実行順序が重要になります。
+
+以下は、商品の配送条件（例：冷凍便）に基づいて手数料を加算する Processor の例です。合計金額の計算後に実行したい場合を想定し、優先度を低めに設定します。
+```php
+<?php
+
+namespace Customize\Service\PurchaseFlow\Processor;
+
+use EcCube\Service\PurchaseFlow\ItemHolderInterface;
+use EcCube\Service\PurchaseFlow\PurchaseContext;
+use EcCube\Service\PurchaseFlow\Processor\AbstractCommonPostprocessor;
+
+/**
+ * 冷凍便が含まれる場合に手数料を追加するプロセッサ
+ */
+class TemperatureFeeProcessor extends AbstractCommonPostprocessor
+{
+    public function execute(ItemHolderInterface $itemHolder, PurchaseContext $context): void
+    {
+        // 1. カート内の商品から温度帯（冷凍）が含まれるかチェック
+        // 2. 冷凍商品がある場合、手数料アイテムを追加
+        // $itemHolder->addItem($coolFeeItem);
+    }
+}
+
+```
+
+実装したプロセッサは、services.yamlでタグ定義を行うだけでシステムに認識されます。
+```yaml
+services:
+    Customize\Service\PurchaseFlow\Processor\TemperatureFeeProcessor:
+        tags:
+            # priorityを -100 に設定することで、標準の計算処理(0)よりも後に実行させる
+            - { name: eccube.common.postprocessor, flow_type: cart, priority: -100 }
+            - { name: eccube.common.postprocessor, flow_type: shopping, priority: -100 }
+            - { name: eccube.common.postprocessor, flow_type: order, priority: -100 }
+
+```
+
+| 設定項目   | 概要 |
+|-----------|------|
+| name      | PurchaseFlowPassに設定されているタグ名を指定 |
+| flow_type | cart、shopping、orderのいずれかを設定（必須） |
+| priority  | 未設定の場合は0が付与。数値が大きいほど、タグ付けされたサービスがコレクション内で先に配置される |
+
 
 ##### ItemValidator
 
@@ -267,7 +641,7 @@ class EmptyProcessor implements ItemPreProcessor
      * @param PurchaseContext $context
      * @return ProcessResult
      */
-    public function process(ItemInterface $item, PurchaseContext $context)
+    public function process(ItemInterface $item, PurchaseContext $context): ProcessResult
     {
         log_info('empty processor executed', [__METHOD__]);
         return ProcessResult::success();
@@ -290,7 +664,7 @@ use Eccube\Service\PurchaseFlow\ItemValidator;
 
 class ValidatableEmptyProcessor extends ItemValidator
 {
-    protected function validate(ItemInterface $item, PurchaseContext $context)
+    protected function validate(ItemInterface $item, PurchaseContext $context): void
     {
         $error = false;
         if ($error) {
@@ -298,7 +672,7 @@ class ValidatableEmptyProcessor extends ItemValidator
         }
     }
 
-    protected function handle(ItemInterface $item, PurchaseContext $context)
+    protected function handle(ItemInterface $item, PurchaseContext $context): void
     {
         $item->setQuantity(100);
     }
@@ -357,12 +731,12 @@ use Eccube\Service\PurchaseFlow\ItemValidator;
  */
 class SampleValidator extends ItemValidator
 {
-    protected function validate(ItemInterface $item, PurchaseContext $context)
+    protected function validate(ItemInterface $item, PurchaseContext $context): void
     {
         // 省略
     }
 
-    protected function handle(ItemInterface $item, PurchaseContext $context)
+    protected function handle(ItemInterface $item, PurchaseContext $context): void
     {
         // 省略
     }

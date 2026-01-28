@@ -6,9 +6,12 @@ permalink: customize_formtype
 folder: customize
 ---
 
+
+---
+
 ## FormExtensionを使った拡張
 
-FormExtensionの仕組みを利用すれば、既存のフォームをカスタマイズすることができます。
+FormExtensionの仕組みを利用すれば、既存のフォーム定義を書き換えることなく、フィールドの追加や設定をカスタマイズすることができます。
 
 ### 拡張方法
 
@@ -25,7 +28,7 @@ public function getExtendedType()
 }
 ```
 
-EC-CUBE 4.1以降は、getExtendedType関数は必ず実装し、拡張するフォームの種類を指定する必要があります。
+EC-CUBE 4.1以降は、getExtendedTypes関数は必ず実装し、拡張するフォームの種類を指定する必要があります。
 
 ```php
 public static function getExtendedTypes(): iterable
@@ -66,31 +69,17 @@ use Symfony\Component\Validator\Constraints\NotBlank;
 
 class CompanyNameRequiredExtension extends AbstractTypeExtension
 {
-    /**
-     * {@inheritdoc}
-     */
-    public function buildForm(FormBuilderInterface $builder, array $options)
+    public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $options = $builder->get('company_name')->getOptions();
 
         $options['required'] = true;
-        $options['constraints'] = [ new NotBlank() ];
+        $options['constraints'] = [new NotBlank()];
         $options['attr']['placeholder'] = '会社名';
 
         $builder->add('company_name', TextType::class, $options);
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function getExtendedType()
-    {
-        return EntryType::class;
-    }
-    
-    /**
-     * {@inheritdoc}
-     */
     public static function getExtendedTypes(): iterable
     {
         yield EntryType::class;

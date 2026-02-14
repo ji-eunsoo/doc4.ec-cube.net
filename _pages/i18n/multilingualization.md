@@ -46,7 +46,7 @@ ECCUBE_LOCALE=en
 
 ## メッセージファイル(翻訳ファイル)
 
-メッセージファイルは、`src/Eccube/Resouce/locale`以下に保存されています。
+メッセージファイルは、`src/Eccube/Resource/locale`以下に保存されています。
 `ECCUBE_LOCALE`の値に応じて、
 
 - messages.xxx.yaml

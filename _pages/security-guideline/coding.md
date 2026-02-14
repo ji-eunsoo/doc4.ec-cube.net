@@ -86,7 +86,7 @@ $resultSet = $stmt->executeQuery();
 return $resultSet->fetchAllAssociative();
 ```
 
-* 推奨された例
+* 推奨例
 
 ```php
 $conn = $this->getEntityManager()->getConnection();
@@ -208,7 +208,7 @@ $dirName = "/path/to/directory/";
 $handle = open($dirName . $fileName, "r");
 ```
 
-* 推奨された例
+* 推奨例
 
 ```php
 $fileName = $request->getParameter('file_path');

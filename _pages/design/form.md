@@ -49,7 +49,7 @@ ECCUBEROOT/src/Eccube/Resource/template/admin/Form/bootstrap_4_horizontal_layout
 フォームレイアウトの内容は `block` で定義されている関数(form_errorsやform_labelなど)を独自に上書きしています。  
 blockの後に続く `form_errors` や `form_label` がTwig関数と対応しています。
 
-### form_div_layout.tiwgの中身
+### form_div_layout.twigの中身
 
 {% highlight twig  %}
 {% raw %}

@@ -2,8 +2,8 @@
 layout: single
 title: Docker Composeを使用してインストールする(EC-CUBE4.0.5以下の場合)
 keywords: install
-tags: [quickstart, install, docker, docker compose]
-permalink: quickstart/install_docker compose_405orlower
+tags: [quickstart, install, docker, docker-compose]
+permalink: quickstart/install_docker-compose_405orlower
 folder: quickstart
 description: Docker Composeを使用してインストールする場合(EC-CUBE4.0.5以下)の説明です。
 ---

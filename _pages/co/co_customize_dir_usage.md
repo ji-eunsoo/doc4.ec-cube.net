@@ -95,7 +95,7 @@ $ git push origin master -u
 ### ローカル環境の立ち上げ
 
 ```
-$ docker compose -f docker compose.yml -f docker compose.pgsql.yml -f docker compose.dev.yml up
+$ docker compose -f docker-compose.yml -f docker-compose.pgsql.yml -f docker-compose.dev.yml up
 $ docker compose exec -u www-data ec-cube bin/console eccube:install --no-interaction
 $ docker compose exec -u www-data ec-cube bin/console eccube:generate:proxies
 $ docker compose exec -u www-data ec-cube bin/console doctrine:schema:update --force --dump-sql

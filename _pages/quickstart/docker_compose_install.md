@@ -37,53 +37,53 @@ docker compose up -d
 docker compose down
 ```
 
-docker compose を使用したインストールでは、基本的な設定は `.env` ではなく、 `docker compose.yml` の `environment` の項目で設定します。(詳細は[.env の使用について](#env-の使用について)の項目をご覧ください。)
+docker compose を使用したインストールでは、基本的な設定は `.env` ではなく、 `docker-compose.yml` の `environment` の項目で設定します。(詳細は[.env の使用について](#env-の使用について)の項目をご覧ください。)
 **また、 `eccube:install` コマンドの対話モードは使用できません。必ず非対話モード(`-n` オプション)を付与してください。**
 
-各種 `docker compose.*.yml` を指定することで、ローカルディレクトリをマウントしたり、データベースを変更することができます。
+各種 `docker-compose.*.yml` を指定することで、ローカルディレクトリをマウントしたり、データベースを変更することができます。
 
 #### PostgreSQL を使用する場合
 
-`docker compose.pgsql.yml` を指定します。
+`docker-compose.pgsql.yml` を指定します。
 
 ``` shell
-docker compose -f docker compose.yml -f docker compose.pgsql.yml up -d
+docker compose -f docker-compose.yml -f docker-compose.pgsql.yml up -d
 ```
 
 データベーススキーマを初期化していない場合は、以下の実行が必要です。
 
 ```
 # スキーマ作成+初期データ投入
-docker compose -f docker compose.yml -f docker compose.pgsql.yml exec ec-cube composer run-script compile
+docker compose -f docker-compose.yml -f docker-compose.pgsql.yml exec ec-cube composer run-script compile
 ```
 
 #### MySQL を使用する場合
 
-`docker compose.mysql.yml` を指定します。
+`docker-compose.mysql.yml` を指定します。
 
 ``` shell
-docker compose -f docker compose.yml -f docker compose.mysql.yml up -d
+docker compose -f docker-compose.yml -f docker-compose.mysql.yml up -d
 ```
 
 データベーススキーマを初期化していない場合は、以下の実行が必要です。
 
 ```
 # スキーマ作成+初期データ投入
-docker compose -f docker compose.yml -f docker compose.mysql.yml exec ec-cube composer run-script compile
+docker compose -f docker-compose.yml -f docker-compose.mysql.yml exec ec-cube composer run-script compile
 ```
 
 #### ローカルディレクトリをマウントする場合
 
-`docker compose.dev.yml` を指定します。
+`docker-compose.dev.yml` を指定します。
 
 ```
 ## MySQL を使用する例
-docker compose -f docker compose.yml -f docker compose.mysql.yml -f docker compose.dev.yml up -d
+docker compose -f docker-compose.yml -f docker-compose.mysql.yml -f docker-compose.dev.yml up -d
 ```
 
 #### .env の使用について
 
-docker compose を使用したインストールでは、 `DATABASE_URL` などの各種環境変数は `docker compose.*.yml` の `environment` の項目で設定します。
+docker compose を使用したインストールでは、 `DATABASE_URL` などの各種環境変数は `docker-compose.*.yml` の `environment` の項目で設定します。
 
 `.env` を使用したい場合は、以下のように設定し ec-cube コンテナを up することで利用できます。
 

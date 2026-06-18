@@ -9,7 +9,7 @@ folder: quickstart
 
 ---
 
-[EC-CUBE4.0.5以下のバージョンをお使いの場合はこちらをご覧ください。](/quickstart/install_docker compose_405orlower)
+[EC-CUBE4.0.5以下のバージョンをお使いの場合はこちらをご覧ください。](/quickstart/install_docker-compose_405orlower)
 
 **開発環境として関連サービス(DB、メールデバッグ環境等)も含め手軽に一括構築したい場合におすすめの方法です**
 

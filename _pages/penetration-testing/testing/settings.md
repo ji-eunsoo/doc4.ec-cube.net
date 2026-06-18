@@ -5,7 +5,7 @@ permalink: /penetration-testing/testing/settings
 ## システム要件
 
 - Docker 1.13.0 or higher
-- docker-compose 1.10.0 or higher
+- docker compose 1.10.0 or higher
 
 - Chrome(最新版) - OWASP ZAP の管理画面操作に使用します
 - Firefox(最新版) - Local Proxes 経由の手動探索で使用します
@@ -17,7 +17,7 @@ permalink: /penetration-testing/testing/settings
 **Note:** 後ほど詳細含めて追記します
 {: .notice}
 
-### docker-compose.owaspzap.yml で自動設定される内容
+### docker compose.owaspzap.yml で自動設定される内容
 
 #### VOLUME マウントディレクトリ
 

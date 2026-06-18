@@ -1,7 +1,7 @@
 ---
 title: Docker Composeを使用してインストールする
 keywords: install Docker docker composer
-tags: [quickstart, install, docker, docker compose]
+tags: [quickstart, install, docker, docker-compose]
 permalink: quickstart/docker_compose_install
 folder: quickstart
 ---
